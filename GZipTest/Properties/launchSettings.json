@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "GZipTest": {
+      "commandName": "Project",
+      "commandLineArgs": "compress \"d:\\png.png\" \"D:\\png.png.gz\""
+    },
+    "Decompress": {
+      "commandName": "Project",
+      "commandLineArgs": "decompress \"d:\\png.png.gz\" \"D:\\png222.png\""
+    }
+  }
+}
