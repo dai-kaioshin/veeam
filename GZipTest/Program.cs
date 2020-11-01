@@ -1,11 +1,8 @@
-﻿using GZipTest.Compression;
-using GZipTest.Processing;
+﻿using GZipTest.Processing;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.IO.Compression;
-using System.Threading;
 
 namespace GZipTest
 {
