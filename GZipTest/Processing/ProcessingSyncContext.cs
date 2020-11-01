@@ -15,10 +15,18 @@ namespace GZipTest.Processing
 
         public AutoResetEvent DoneEvent { get; }
 
-        private bool _finishedFlag = false;
 
         private Exception _exception = null;
 
+        internal class FinishedFlag
+        {
+            internal bool Finished
+            {
+                get; set;
+            } = false;
+        }
+
+        private FinishedFlag _finished = new FinishedFlag();
 
 
         internal ProcessingSyncContext(IQueue<DataChunk> queue)
@@ -27,7 +35,15 @@ namespace GZipTest.Processing
             SyncHandle = new AutoResetEvent(false);
             DoneEvent = new AutoResetEvent(false);
             SyncRoot = new object();
+        }
 
+        internal ProcessingSyncContext(IQueue<DataChunk> queue, AutoResetEvent syncHandle, object syncRoot, AutoResetEvent doneEvent, FinishedFlag finishedFlag)
+        {
+            Queue = queue;
+            SyncHandle = syncHandle;
+            SyncRoot = syncRoot;
+            DoneEvent = doneEvent;
+            _finished = finishedFlag;
         }
 
         internal bool Finished
@@ -36,7 +52,7 @@ namespace GZipTest.Processing
             {
                 lock(SyncRoot)
                 {
-                    return _finishedFlag;
+                    return _finished.Finished;
                 }
             }
         }
@@ -45,7 +61,7 @@ namespace GZipTest.Processing
         {
             lock(SyncRoot)
             {
-                _finishedFlag = true;
+                _finished.Finished = true;
             }
         }
 

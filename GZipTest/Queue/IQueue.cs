@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace GZipTest.Queue
+﻿namespace GZipTest.Queue
 {
     interface IQueue<T>
     {

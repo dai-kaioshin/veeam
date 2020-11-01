@@ -1,4 +1,7 @@
 ﻿using GZipTest.Chunks;
+using GZipTest.Processing.Process;
+using GZipTest.Processing.Read;
+using GZipTest.Processing.Write;
 using System;
 using System.IO;
 using System.IO.Compression;
@@ -9,121 +12,19 @@ namespace GZipTest.Processing
 {
     internal class CompressData : AbstractReadProcessWrite
     {
-
-        protected override void CreateOutputFile(ReadProcessWriteInput input)
+        protected override IDataProcessor CreateDataProcessor()
         {
-            using (var outputFileStream = File.Create(input.OutputFileName))
-            {
-                byte[] ascii = Encoding.ASCII.GetBytes(FILE_HEADER);
-                outputFileStream.Write(ascii);
-                outputFileStream.Write(BitConverter.GetBytes(input.ChunkSize), 0, sizeof(int));
-            }
-        }
-        protected override void DoProcessing(ProcessingSyncContext processingSyncContext, ProcessingSyncContext writeSyncContext)
-        {
-            try
-            {
-                while (true)
-                {
-                    DataChunk chunk = null;
-                    bool canFinish = false;
-                    
-                    bool dequeued = processingSyncContext.Queue.Dequeue(out chunk);
-
-
-                    if (!dequeued && processingSyncContext.Finished)
-                    {
-                        return;
-                    }
-
-                    if(!dequeued)
-                    {
-                        processingSyncContext.SyncHandle.WaitOne(100);
-                        continue;
-                    }
-
-
-                    _log.Debug($"Compressing chunk : {chunk}");
-                    using (var memoryStream = new MemoryStream())
-                    {
-                        using (var gzipStream = new GZipStream(memoryStream, CompressionLevel.Optimal))
-                        {
-                            gzipStream.Write(chunk.Data, 0, chunk.Data.Length);
-                            gzipStream.Flush();
-                            DataChunk compressedChunk = new DataChunk(chunk.Part, chunk.Position, chunk.DecompressedSize, memoryStream.ToArray());
-
-                            writeSyncContext.Queue.Enqueue(compressedChunk);
-                            writeSyncContext.SyncHandle.Set();
-                        }
-                    }
-                    
-                }
-            }
-            catch(Exception exception)
-            {
-                processingSyncContext.SetError(new ProcessingException($"Exception during compression in thread Thread : {Thread.CurrentThread.Name}", exception));
-            }
-            finally
-            {
-                processingSyncContext.DoneEvent.Set();
-            }
+            return new CompressionDataProcessor();
         }
 
-        protected override void DoWriting(ProcessingSyncContext syncContext, string outputFileName)
+        protected override IDataReader CreateDataReader(ReadProcessWriteInput input)
         {
-            try
-            {
-                using (var outputFileStream = new FileStream(outputFileName, FileMode.Append))
-                {
-                    while (true)
-                    {
-                        DataChunk chunk = null;
-                        bool canFinish = false;
-                        syncContext.Queue.Dequeue(out chunk);
-                        if (chunk == null && syncContext.Finished)
-                        {
-                            canFinish = true;
-                        }
-                        if (canFinish)
-                        {
-                            return;
-                        }
-                        if (chunk == null)
-                        {
-                            syncContext.SyncHandle.WaitOne();
-                            continue;
-                        }
-                        _log.Debug($"Writing chunk : {chunk}");
-                        outputFileStream.Write(BitConverter.GetBytes(chunk.Part), 0, sizeof(int));
-                        outputFileStream.Write(BitConverter.GetBytes(chunk.Position), 0, sizeof(long));
-                        outputFileStream.Write(BitConverter.GetBytes(chunk.Data.Length), 0, sizeof(int));
-                        outputFileStream.Write(chunk.Data, 0, chunk.Data.Length);
-                    }
-                }
-            }
-            catch(Exception exception)
-            {
-                syncContext.SetError(new ProcessingException($"Error writing compressed data to output file : {exception.Message}", exception));
-            }
-            finally
-            {
-                syncContext.DoneEvent.Set();
-            }
+            return new CompressionDataReader(input.InputFileName, input.ChunkSize);
         }
 
-        protected override bool ReadNextChunk(Stream inputStream, int chunkSize, byte[] buffer, ref int part, ref long position, out DataChunk dataChunk)
+        protected override IDataWriter CreateDataWriter(ReadProcessWriteInput input)
         {
-            dataChunk = null;
-            if (inputStream.Position >= inputStream.Length)
-            {
-                return false;
-            }
-            int read = inputStream.Read(buffer, 0, chunkSize);
-            byte[] chunk = new byte[read];
-            Array.Copy(buffer, chunk, read);
-            dataChunk = new DataChunk(part++, position, chunk);
-            position += read;
-            return true;
+            return new CompressionDataWriter(input.OutputFileName, input.ChunkSize);
         }
     }
 }

@@ -50,8 +50,8 @@ namespace GZipTest.Queue
                 {
                     item = _queue.Dequeue();
                     result = true;
+                    _queueSizeChangedEvent.Set();
                 }
-                Monitor.PulseAll(_queue);
             }
             return result;
         }

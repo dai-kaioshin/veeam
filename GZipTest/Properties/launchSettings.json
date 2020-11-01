@@ -6,7 +6,7 @@
     },
     "Decompress": {
       "commandName": "Project",
-      "commandLineArgs": "decompress \"d:\\png.png.gz\" \"D:\\png222.png\""
+      "commandLineArgs": "decompress \"d:\\png.png.gz\" \"D:\\png22.png\""
     }
   }
 }

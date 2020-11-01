@@ -1,47 +1,73 @@
 ﻿using GZipTest.Compression;
 using GZipTest.Processing;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
+using System.IO.Compression;
 using System.Threading;
 
 namespace GZipTest
 {
     class Program
     {
-        static Semaphore _semaphore = new Semaphore(0, 6);
-        static void Main(string[] args)
+
+        private static Dictionary<string, ReadProcessWriteMode> _nameToModeMap = new Dictionary<string, ReadProcessWriteMode>
         {
-            string mode = args[0];
-            string inputFileName = args[1];
-            string outputFileName = args[2];
-            //log4net.Config.BasicConfigurator.Configure();
-            int procCnt = Environment.ProcessorCount;
-            log4net.LogManager.GetLogger("ABC").Debug("StART");
-            Stopwatch watch = new Stopwatch();
-            watch.Start();
-            if (mode == "compress")
-                //new Compressor().Compress(inputFileName, outputFileName);
-                new CompressData().ReadProcessWrite(new ReadProcessWriteInput(inputFileName, outputFileName, 1024));
-            if (mode == "decompress")
-                //new Decompressor().Decompress(inputFileName, outputFileName);
-                new DecompressData().ReadProcessWrite(new ReadProcessWriteInput(inputFileName, outputFileName, 1024));
+            { "compress", ReadProcessWriteMode.Compress},
+            { "decompress", ReadProcessWriteMode.Decompress }
+        };
 
-            watch.Stop();
-            Console.WriteLine($"Time : {watch.Elapsed}");
-
-            /*for(int i = 0; i < 12; i++)
+        private static ReadProcessWriteMode Parse(string mode)
+        {
+            if(!_nameToModeMap.ContainsKey(mode))
             {
-                new Thread(() => DoSth()).Start();
+                throw new Exception($"Unkown mode : {mode}, accepted modes are [compress|decompress]");
             }
-            _semaphore.Release(6);*/
+            return _nameToModeMap[mode];
         }
 
-        static void DoSth()
+        static int Main(string[] args)
         {
-            _semaphore.WaitOne();
-            System.Console.WriteLine($"Thread : {Thread.CurrentThread.ManagedThreadId} working : {Environment.TickCount}");
-            Thread.Sleep(100);
-            _semaphore.Release();
+            try
+            {
+
+                if (args.Length != 3)
+                {
+                    throw new Exception("Wrong number of parameters : accepted parameters are mode:[compress|decompress] inputFile outputFile");
+                }
+                string mode = args[0];
+                string inputFileName = args[1];
+                string outputFileName = args[2];
+
+                ReadProcessWriteMode modeEnum = Parse(mode);
+
+                IReadProcessWrite readProcessWrite = ReadProcessWriteFactory.Create(modeEnum);
+
+                ReadProcessWriteInput input = new ReadProcessWriteInput(inputFileName, outputFileName);
+
+                log4net.Config.XmlConfigurator.Configure(new FileInfo("log4net.config"));
+
+                string work = modeEnum == ReadProcessWriteMode.Compress ? "Compressing" : "Decompressing";
+
+                Console.WriteLine($"{work} {inputFileName} into {outputFileName}");
+
+                Stopwatch watch = new Stopwatch();
+                watch.Start();
+
+                readProcessWrite.ReadProcessWrite(input);
+
+                watch.Stop();
+                string jobName = modeEnum == ReadProcessWriteMode.Compress ? "Compression" : "Decompression";
+                Console.WriteLine($"{jobName} done. Work time : {watch.Elapsed}");
+                return 0;
+                
+            }
+            catch(Exception exception)
+            {
+                Console.WriteLine(exception.Message);
+            }
+            return 1;
         }
     }
 }
