@@ -19,7 +19,7 @@ namespace GZipTest.Processing
                 outputFileStream.Write(BitConverter.GetBytes(input.ChunkSize), 0, sizeof(int));
             }
         }
-        protected override void DoProcessing(ProcessingSyncContext<Semaphore> processingSyncContext, ProcessingSyncContext<AutoResetEvent> writeSyncContext)
+        protected override void DoProcessing(ProcessingSyncContext processingSyncContext, ProcessingSyncContext writeSyncContext)
         {
             try
             {
@@ -28,32 +28,35 @@ namespace GZipTest.Processing
                     DataChunk chunk = null;
                     bool canFinish = false;
                     
-                    processingSyncContext.SyncHandle.WaitOne();
                     bool dequeued = processingSyncContext.Queue.Dequeue(out chunk);
 
-                    if (dequeued)
-                    {
-                        _log.Debug($"Compressing chunk : {chunk}");
-                        using (var memoryStream = new MemoryStream())
-                        {
-                            using (var gzipStream = new GZipStream(memoryStream, CompressionLevel.Optimal))
-                            {
-                                gzipStream.Write(chunk.Data, 0, chunk.Data.Length);
-                                gzipStream.Flush();
-                                DataChunk compressedChunk = new DataChunk(chunk.Part, chunk.Position, chunk.DecompressedSize, memoryStream.ToArray());
 
-                                writeSyncContext.Queue.Enqueue(compressedChunk);
-                                writeSyncContext.SyncHandle.Set();
-                            }
-                        }
-                    }
-
-                    processingSyncContext.SyncHandle.Release();
-
-                    if(!dequeued && processingSyncContext.Finished)
+                    if (!dequeued && processingSyncContext.Finished)
                     {
                         return;
                     }
+
+                    if(!dequeued)
+                    {
+                        processingSyncContext.SyncHandle.WaitOne(100);
+                        continue;
+                    }
+
+
+                    _log.Debug($"Compressing chunk : {chunk}");
+                    using (var memoryStream = new MemoryStream())
+                    {
+                        using (var gzipStream = new GZipStream(memoryStream, CompressionLevel.Optimal))
+                        {
+                            gzipStream.Write(chunk.Data, 0, chunk.Data.Length);
+                            gzipStream.Flush();
+                            DataChunk compressedChunk = new DataChunk(chunk.Part, chunk.Position, chunk.DecompressedSize, memoryStream.ToArray());
+
+                            writeSyncContext.Queue.Enqueue(compressedChunk);
+                            writeSyncContext.SyncHandle.Set();
+                        }
+                    }
+                    
                 }
             }
             catch(Exception exception)
@@ -66,7 +69,7 @@ namespace GZipTest.Processing
             }
         }
 
-        protected override void DoWriting(ProcessingSyncContext<AutoResetEvent> syncContext, string outputFileName)
+        protected override void DoWriting(ProcessingSyncContext syncContext, string outputFileName)
         {
             try
             {

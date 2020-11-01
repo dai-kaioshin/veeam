@@ -23,13 +23,12 @@ namespace GZipTest.Processing
 
                 int processingThreads = Environment.ProcessorCount;
 
-                ProcessingSyncContext<Semaphore> processingSyncContext = new ProcessingSyncContext<Semaphore>(new FixedSizeQueue<DataChunk>((uint)(2 * processingThreads)), new Semaphore(0, processingThreads));
+                ProcessingSyncContext processingSyncContext = new ProcessingSyncContext(new FixedSizeQueue<DataChunk>((uint)(2 * processingThreads)));
 
-                ProcessingSyncContext<AutoResetEvent> writingSyncContext = new ProcessingSyncContext<AutoResetEvent>(new ThreadSafeQueue<DataChunk>(), new AutoResetEvent(false));
+                ProcessingSyncContext writingSyncContext = new ProcessingSyncContext(new ThreadSafeQueue<DataChunk>());
 
                 StartProcessingThreads(processingSyncContext, writingSyncContext, processingThreads);
                 StartWritingThread(writingSyncContext, input.OutputFileName);
-                processingSyncContext.SyncHandle.Release(processingThreads);
                 ReadData(input, processingSyncContext, writingSyncContext);
             }
             catch(Exception)
@@ -73,7 +72,7 @@ namespace GZipTest.Processing
             chunkSize = input.ChunkSize;
         }
 
-        private void ReadData(ReadProcessWriteInput input, ProcessingSyncContext<Semaphore> processingSyncContest, ProcessingSyncContext<AutoResetEvent> writingSyncContext)
+        private void ReadData(ReadProcessWriteInput input, ProcessingSyncContext processingSyncContest, ProcessingSyncContext writingSyncContext)
         {
             bool errorOccured = false;
             try
@@ -101,6 +100,7 @@ namespace GZipTest.Processing
                                     throw exception;
                                 }
                             }
+                            processingSyncContest.SyncHandle.Set();
                         }
                     }
                 }
@@ -118,8 +118,7 @@ namespace GZipTest.Processing
             finally
             {
                 processingSyncContest.SetFinished();
-                int count;
-                while((count = processingSyncContest.SyncHandle.Release()) > 1){ }
+                processingSyncContest.SyncHandle.Set();
 
                 processingSyncContest.DoneEvent.WaitOne();
 
@@ -156,7 +155,7 @@ namespace GZipTest.Processing
             }
         }
 
-        private void StartProcessingThreads(ProcessingSyncContext<Semaphore> processingSyncContext, ProcessingSyncContext<AutoResetEvent> writeSyncContext, int processingThreads)
+        private void StartProcessingThreads(ProcessingSyncContext processingSyncContext, ProcessingSyncContext writeSyncContext, int processingThreads)
         {
             for(int i = 0; i < processingThreads; i++)
             {
@@ -164,15 +163,15 @@ namespace GZipTest.Processing
             }
         }
 
-        private void StartWritingThread(ProcessingSyncContext<AutoResetEvent> writingSyncContext, string outputFileName)
+        private void StartWritingThread(ProcessingSyncContext writingSyncContext, string outputFileName)
         {
             new Thread(() => DoWriting(writingSyncContext, outputFileName)).Start();
         }
 
         protected abstract bool ReadNextChunk(Stream inputStream, int chunkSize, byte[] buffer, ref int part, ref long position, out DataChunk dataChunk);
 
-        protected abstract void DoProcessing(ProcessingSyncContext<Semaphore> processingSyncContext, ProcessingSyncContext<AutoResetEvent> writeSyncContext);
+        protected abstract void DoProcessing(ProcessingSyncContext processingSyncContext, ProcessingSyncContext writeSyncContext);
 
-        protected abstract void DoWriting(ProcessingSyncContext<AutoResetEvent> syncContext, string outputFileName);
+        protected abstract void DoWriting(ProcessingSyncContext syncContext, string outputFileName);
     }
 }

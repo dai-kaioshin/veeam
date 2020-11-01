@@ -5,13 +5,13 @@ using System.Threading;
 
 namespace GZipTest.Processing
 {
-    internal class ProcessingSyncContext<TSyncHandle> where TSyncHandle : WaitHandle
+    internal class ProcessingSyncContext
     {
         public IQueue<DataChunk> Queue { get; }
 
         public object SyncRoot { get; }
 
-        public TSyncHandle SyncHandle { get; }
+        public AutoResetEvent SyncHandle { get; }
 
         public AutoResetEvent DoneEvent { get; }
 
@@ -21,10 +21,10 @@ namespace GZipTest.Processing
 
 
 
-        internal ProcessingSyncContext(IQueue<DataChunk> queue, TSyncHandle syncHandle)
+        internal ProcessingSyncContext(IQueue<DataChunk> queue)
         {
             Queue = queue;
-            SyncHandle = syncHandle;
+            SyncHandle = new AutoResetEvent(false);
             DoneEvent = new AutoResetEvent(false);
             SyncRoot = new object();
 

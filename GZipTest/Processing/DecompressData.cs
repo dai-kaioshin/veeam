@@ -24,7 +24,7 @@ namespace GZipTest.Processing
                 }
             }
         }
-        protected override void DoProcessing(ProcessingSyncContext<Semaphore> processingSyncContext, ProcessingSyncContext<AutoResetEvent> writeSyncContext)
+        protected override void DoProcessing(ProcessingSyncContext processingSyncContext, ProcessingSyncContext writeSyncContext)
         {
             try
             {
@@ -41,6 +41,12 @@ namespace GZipTest.Processing
                         return;
                     }
 
+                    if(chunk == null)
+                    {
+                        processingSyncContext.SyncHandle.WaitOne(100);
+                        continue;
+                    }
+
                     using (var memoryStream = new MemoryStream(chunk.Data))
                     {
                         using (var gzipStream = new GZipStream(memoryStream, CompressionMode.Decompress))
@@ -54,7 +60,6 @@ namespace GZipTest.Processing
                             writeSyncContext.SyncHandle.Set();
                         }
                     }
-                    processingSyncContext.SyncHandle.Release();
                 }
             }
             catch(Exception exception)
@@ -67,7 +72,7 @@ namespace GZipTest.Processing
             }
         }
 
-        protected override void DoWriting(ProcessingSyncContext<AutoResetEvent> syncContext, string outputFileName)
+        protected override void DoWriting(ProcessingSyncContext syncContext, string outputFileName)
         {
             try
             {
