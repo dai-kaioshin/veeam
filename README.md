@@ -17,7 +17,7 @@ That's why we save the position so we are able to put back the file in the right
 The number of parts is of course size_of_compressed_file / 1MB
 The program uses one reader and one writer thread and multiple processing threads.
 * Reader thread is reading the file in parts of 1MB
-* Processing threads are comporessing or decompressing the chunks
+* Processing threads are compressing or decompressing the chunks
 * Writer thread writes the compressed/decompressed chunks into output file.
 
 The reader and writer threads are doing pure IO operations as they just either read or write to the disk.
@@ -36,5 +36,5 @@ As mentioned there is a nice level of abstraction to notice here that basically 
 That's what I was trying to achive.
 
 In general there is interface IReadProcessWrite with abstract implementation AbstractReadProcessWrite (which is basically like a template of read->process->write it creates threads manages them etc). 
-And the comcrete implementations of this abstract class are validating if the compression / decompression inputs are correct and create a small utility classes for the threads that are either compressing / decompressing data.
+And the concrete implementations of this abstract class are validating if the compression / decompression inputs are correct and create a small utility classes for the threads that are either compressing / decompressing data.
 
