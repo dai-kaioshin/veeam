@@ -2,7 +2,6 @@
 using GZipTest.Queue;
 using System;
 using System.Threading;
-using System.Xml.Serialization;
 
 namespace GZipTest.Processing
 {

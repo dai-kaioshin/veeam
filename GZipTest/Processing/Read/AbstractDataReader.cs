@@ -1,5 +1,4 @@
 ﻿using GZipTest.Chunks;
-using System.Data;
 using System.IO;
 
 namespace GZipTest.Processing.Read

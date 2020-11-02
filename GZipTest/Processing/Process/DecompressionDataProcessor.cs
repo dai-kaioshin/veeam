@@ -1,10 +1,7 @@
 ﻿using GZipTest.Chunks;
 using log4net;
-using System;
-using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
-using System.Text;
 
 namespace GZipTest.Processing.Process
 {

@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace GZipTest.Processing
+﻿namespace GZipTest.Processing
 {
     internal class Constants
     {

@@ -8,7 +8,6 @@ namespace GZipTest.Processing
 {
     internal class CompressData : AbstractReadProcessWrite
     {
-
         protected override void CheckPreconditions(ReadProcessWriteInput input)
         {
             base.CheckPreconditions(input);
