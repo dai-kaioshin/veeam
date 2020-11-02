@@ -2,11 +2,11 @@
   "profiles": {
     "GZipTest": {
       "commandName": "Project",
-      "commandLineArgs": "compress \"d:\\png.png\" \"D:\\png.png.gz\""
+      "commandLineArgs": "compress \"d:\\krew.mp3\" \"D:\\krew.mp3.gz\""
     },
     "Decompress": {
       "commandName": "Project",
-      "commandLineArgs": "decompress \"d:\\png.png.gz\" \"D:\\png22.png\""
+      "commandLineArgs": "decompress \"d:\\krew.mp3.gz\" \"D:\\krew22.mp3\""
     }
   }
 }

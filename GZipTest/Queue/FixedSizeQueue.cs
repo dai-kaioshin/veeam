@@ -15,29 +15,33 @@ namespace GZipTest.Queue
         public FixedSizeQueue(uint maxSize)
         {
             Debug.Assert(maxSize > 0, "maxSize has to be greater then 0");
-            _maxSize = (uint)maxSize;
+            _maxSize = maxSize;
         }
 
         public bool Enqueue(T item, int timeout = 100)
         {
-            bool enqueued = false;
-            while (!enqueued)
+            bool waited = false;
+            while (true)
             { 
                 lock (_queue)
                 {
-                    if(_queue.Count >= _maxSize)
+                    if(_queue.Count < _maxSize)
                     {
-                        bool signaled = _queueSizeChangedEvent.WaitOne(timeout);
-                        if (!signaled)
-                        {
-                            return false;
-                        }
+                        _queue.Enqueue(item);
+                        return true;
                     }
-                    _queue.Enqueue(item);
-                    enqueued = true;
+                    if(waited && timeout != Timeout.Infinite)
+                    {
+                        return false;
+                    }
+                }
+                waited = true;
+                bool signaled = _queueSizeChangedEvent.WaitOne(timeout);
+                if (!signaled)
+                {
+                    return false;
                 }
             }
-            return enqueued;
         }
 
         public bool Dequeue(out T item)
@@ -50,8 +54,11 @@ namespace GZipTest.Queue
                 {
                     item = _queue.Dequeue();
                     result = true;
-                    _queueSizeChangedEvent.Set();
                 }
+            }
+            if(result)
+            {
+                _queueSizeChangedEvent.Set();
             }
             return result;
         }
