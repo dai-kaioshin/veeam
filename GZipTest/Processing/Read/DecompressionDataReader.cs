@@ -6,6 +6,8 @@ namespace GZipTest.Processing.Read
     class DecompressionDataReader : AbstractDataReader
     {
         private int _decompressedChunkSize;
+
+        private int _part = 0;
         internal DecompressionDataReader(string inputFileName)
             : base(inputFileName)
         {
@@ -14,6 +16,7 @@ namespace GZipTest.Processing.Read
             _fileStream.Read(buffer, 0, sizeof(int));
             _decompressedChunkSize = BitConverter.ToInt32(buffer);
             _buffer = new byte[_decompressedChunkSize + Constants.GZIP_HEADER_AND_FOOTER_LENGTH];
+
         }
 
         public override bool ReadNext(out DataChunk chunk)
@@ -24,9 +27,6 @@ namespace GZipTest.Processing.Read
                 return false;
             }
 
-            _fileStream.Read(_buffer, 0, sizeof(int));
-            int part = BitConverter.ToInt32(_buffer);
-
             _fileStream.Read(_buffer, 0, sizeof(long));
             long position = BitConverter.ToInt64(_buffer);
 
@@ -36,7 +36,7 @@ namespace GZipTest.Processing.Read
             int read = _fileStream.Read(_buffer, 0, compressedChunkSize);
             byte[] result = new byte[read];
             Array.Copy(_buffer, result, read);
-            chunk = new DataChunk(part, position, _decompressedChunkSize, result);
+            chunk = new DataChunk(_part++, position, _decompressedChunkSize, result);
             return true;
         }
     }

@@ -2,9 +2,6 @@
 {
     class DataChunk
     {
-
-        public readonly static DataChunk END = new DataChunk(-1, -1, null);
-
         public int Part
         {
             get;
