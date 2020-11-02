@@ -89,6 +89,19 @@ namespace GZipTest.Processing
             }
         }
 
+        private void CheckContextException(SyncContextBase syncContext)
+        {
+            Exception exception = syncContext.Exception;
+            if(exception != null)
+            {
+                if(exception.GetType() == typeof(ProcessingException))
+                {
+                    throw exception;
+                }
+                throw new ProcessingException($"Unexpected error : {exception.Message}", exception);
+            }
+        }
+
         private void ReadData(ReadProcessWriteInput input, ProcessingSyncContext processingSyncContest, WritingSyncContext writingSyncContext)
         {
             bool errorOccured = false;
@@ -106,18 +119,12 @@ namespace GZipTest.Processing
                             enqueued = processingSyncContest.Queue.Enqueue(chunk, 100);
                             if (!enqueued)
                             {
-                                Exception exception = processingSyncContest.Exception;
-                                if (exception != null)
-                                {
-                                    throw exception;
-                                }
-                                exception = writingSyncContext.Exception;
-                                if (exception != null)
-                                {
-                                    throw exception;
-                                }
+                                CheckContextException(processingSyncContest);
                             }
                         }
+                        CheckContextException(processingSyncContest);
+                        CheckContextException(writingSyncContext);
+
                         processingSyncContest.SetAllSyncEvents();
                     }
                 }
@@ -145,30 +152,8 @@ namespace GZipTest.Processing
 
                 if(!errorOccured)
                 {
-                    Exception exception = processingSyncContest.Exception;
-                    if(exception != null)
-                    {
-                        if(exception.GetType() == typeof(ProcessingException))
-                        {
-                            throw exception;
-                        }
-                        else
-                        {
-                            throw new ProcessingException("Unexpected error occured.", exception);
-                        }
-                    }
-                    exception = writingSyncContext.Exception;
-                    if (exception != null)
-                    {
-                        if (exception.GetType() == typeof(ProcessingException))
-                        {
-                            throw exception;
-                        }
-                        else
-                        {
-                            throw new ProcessingException("Unexpected error occured.", exception);
-                        }
-                    }
+                    CheckContextException(processingSyncContest);
+                    CheckContextException(writingSyncContext);
                 }
             }
         }
@@ -214,7 +199,7 @@ namespace GZipTest.Processing
 
                     if (!dequeued && processingSyncContext.Finished)
                     {
-                        _log.Debug($"Compressing thread {Thread.CurrentThread.Name} exists.");
+                        _log.Debug($"Processing thread {Thread.CurrentThread.Name} exists.");
                         return;
                     }
                     Exception exception = writeSyncContext.Exception;
@@ -226,19 +211,24 @@ namespace GZipTest.Processing
                         return;
                     }
 
+                    exception = processingSyncContext.Exception;
+
+                    if(exception != null)
+                    {
+                        return;
+                    }
+
                     if (!dequeued)
                     {
                         processingSyncContext.SyncEvents[threadIdx].WaitOne();
                         continue;
                     }
 
-                    throw new Exception("SOME ERROR");
-
                     bool enqueued = false;
                     DataChunk processedChunk = dataProcessor.ProcessData(chunk);
                     while (!enqueued)
                     {
-                        enqueued = writeSyncContext.Queue.Enqueue(processedChunk);
+                        enqueued = writeSyncContext.Queue.Enqueue(processedChunk, 100);
                         if(!enqueued)
                         {
                             exception = writeSyncContext.Exception;

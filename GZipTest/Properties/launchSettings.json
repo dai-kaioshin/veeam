@@ -1,12 +1,12 @@
 {
   "profiles": {
-    "GZipTest": {
-      "commandName": "Project",
-      "commandLineArgs": "compress \"d:\\krew.mp3\" \"D:\\krew.mp3.gz\""
-    },
     "Decompress": {
       "commandName": "Project",
       "commandLineArgs": "decompress \"d:\\krew.mp3.gz\" \"D:\\krew22.mp3\""
+    },
+    "Compress": {
+      "commandName": "Project",
+      "commandLineArgs": "compress \"d:\\krew.mp3\" \"D:\\krew.mp3.gz\""
     }
   }
 }
