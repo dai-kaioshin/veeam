@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 
 namespace GZipTest
 {
@@ -53,6 +54,14 @@ namespace GZipTest
                 watch.Start();
 
                 readProcessWrite.ReadProcessWrite(input);
+
+                /*using(var inFile = File.OpenRead(inputFileName))
+                {
+                    using(var outFile = new GZipStream(File.Create(outputFileName), CompressionLevel.Optimal))
+                    {
+                        inFile.CopyTo(outFile);
+                    }
+                }*/
 
                 watch.Stop();
                 string jobName = modeEnum == ReadProcessWriteMode.Compress ? "Compression" : "Decompression";

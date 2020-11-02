@@ -2,11 +2,11 @@
   "profiles": {
     "Decompress": {
       "commandName": "Project",
-      "commandLineArgs": "decompress \"d:\\krew.mp3.gz\" \"D:\\krew22.mp3\""
+      "commandLineArgs": "decompress \"d:\\GOPR0109.MP4.gz\" \"D:\\GOPR0109_abc.MP4\""
     },
     "Compress": {
       "commandName": "Project",
-      "commandLineArgs": "compress \"d:\\krew.mp3\" \"D:\\krew.mp3.gz\""
+      "commandLineArgs": "compress \"d:\\GOPR0109.MP4\" \"D:\\GOPR0109.MP4.gz\""
     }
   }
 }
