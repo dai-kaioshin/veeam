@@ -10,12 +10,6 @@ namespace GZipTest.Processing
     abstract class AbstractReadProcessWrite : IReadProcessWrite
     {
         protected static readonly log4net.ILog _log = log4net.LogManager.GetLogger(typeof(AbstractReadProcessWrite));
-        protected abstract IDataReader CreateDataReader(ReadProcessWriteInput input);
-
-        protected abstract IDataWriter CreateDataWriter(ReadProcessWriteInput input);
-
-        protected abstract IDataProcessor CreateDataProcessor();
-
         public void ReadProcessWrite(ReadProcessWriteInput input)
         {
             bool error = false;
@@ -28,7 +22,7 @@ namespace GZipTest.Processing
 
                 int processingThreads = Environment.ProcessorCount;
                 int processingQueueSize = processingThreads * 2;
-                
+
 
                 ProcessingSyncContext processingSyncContext = new ProcessingSyncContext(processingThreads, processingQueueSize);
                 WritingSyncContext writingSyncContext = new WritingSyncContext(processingThreads);
@@ -37,7 +31,7 @@ namespace GZipTest.Processing
                 writer = StartWritingThread(writingSyncContext, input);
                 ReadData(input, processingSyncContext, writingSyncContext);
             }
-            catch(Exception exception)
+            catch (Exception exception)
             {
                 _log.Error(exception);
                 error = true;
@@ -45,15 +39,15 @@ namespace GZipTest.Processing
             }
             finally
             {
-                if(processors != null)
+                if (processors != null)
                 {
-                    for(int i = 0; i < processors.Length; i++)
+                    for (int i = 0; i < processors.Length; i++)
                     {
                         JoinOrAbortThread(processors[i]);
                     }
                     JoinOrAbortThread(writer);
                 }
-                if(error)
+                if (error)
                 {
                     if (File.Exists(input.OutputFileName))
                     {
@@ -69,6 +63,11 @@ namespace GZipTest.Processing
                 }
             }
         }
+        protected abstract IDataReader CreateDataReader(ReadProcessWriteInput input);
+
+        protected abstract IDataWriter CreateDataWriter(ReadProcessWriteInput input);
+
+        protected abstract IDataProcessor CreateDataProcessor();
 
         protected virtual void CheckPreconditions(ReadProcessWriteInput input)
         {
@@ -306,6 +305,7 @@ namespace GZipTest.Processing
             {
                 if (!joined)
                 {
+                    _log.Error($"Thread {thread.Name} won't join - aborting.");
                     thread.Abort();
                 }
             }
