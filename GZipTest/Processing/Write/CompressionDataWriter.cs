@@ -1,6 +1,7 @@
 ﻿using GZipTest.Chunks;
 using log4net;
 using System;
+using System.IO;
 using System.Text;
 
 namespace GZipTest.Processing.Write
@@ -8,11 +9,18 @@ namespace GZipTest.Processing.Write
     class CompressionDataWriter : AbstractDataWriter
     {
         private static readonly ILog _log = LogManager.GetLogger(typeof(CompressionDataWriter));
-        internal CompressionDataWriter(string outputFileName, int chunkSize)
+
+        public static readonly int WHOLE_HEADER_SIZE = Constants.FILE_HEADER_LENGTH + sizeof(int) + sizeof(long);
+
+        public static readonly int CHUNK_HEADER_SIZE = 2 * sizeof(int) + sizeof(long);
+
+        internal CompressionDataWriter(string inputFileName, string outputFileName, int chunkSize)
             : base(outputFileName)
         {
+            long size = new FileInfo(inputFileName).Length;
             byte[] ascii = Encoding.ASCII.GetBytes(Constants.FILE_HEADER);
             _outputFile.Write(ascii);
+            _outputFile.Write(BitConverter.GetBytes(size), 0, sizeof(long));
             _outputFile.Write(BitConverter.GetBytes(chunkSize), 0, sizeof(int));
         }
 

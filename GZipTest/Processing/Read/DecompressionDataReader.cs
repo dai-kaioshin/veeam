@@ -1,6 +1,5 @@
 ﻿using GZipTest.Chunks;
 using System;
-using System.Security.Cryptography;
 
 namespace GZipTest.Processing.Read
 {
@@ -10,11 +9,11 @@ namespace GZipTest.Processing.Read
         internal DecompressionDataReader(string inputFileName)
             : base(inputFileName)
         {
-            _fileStream.Position = Constants.FILE_HEADER_LENGTH;
+            _fileStream.Position = Constants.FILE_HEADER_LENGTH + sizeof(long);
             byte[] buffer = new byte[sizeof(int)];
             _fileStream.Read(buffer, 0, sizeof(int));
             _decompressedChunkSize = BitConverter.ToInt32(buffer);
-            _buffer = new byte[(int)Math.Floor(_decompressedChunkSize * 1.3)];
+            _buffer = new byte[_decompressedChunkSize + Constants.GZIP_HEADER_AND_FOOTER_LENGTH];
         }
 
         public override bool ReadNext(out DataChunk chunk)

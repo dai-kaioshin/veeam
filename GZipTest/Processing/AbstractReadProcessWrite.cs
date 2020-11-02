@@ -129,7 +129,7 @@ namespace GZipTest.Processing
                     }
                 }
             }
-            catch(ProcessingException processingException)
+            catch(ProcessingException)
             {
                 errorOccured = true;
                 throw;
@@ -137,7 +137,7 @@ namespace GZipTest.Processing
             catch(Exception exception)
             {
                 errorOccured = true;
-                throw new ProcessingException("Unexpected error occured.", exception);
+                throw new ProcessingException($"Unexpected error occured : {exception.Message}", exception);
             }
             finally
             {
