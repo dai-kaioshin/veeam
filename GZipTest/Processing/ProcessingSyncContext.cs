@@ -86,7 +86,7 @@ namespace GZipTest.Processing
 
         public WritingSyncContext(int numThreads)
         {
-            Queue = new ThreadSafeQueue<DataChunk>();
+            Queue = new FixedSizeQueue<DataChunk>((uint)numThreads);
             SyncEvents = new AutoResetEvent[numThreads];
             for(int i  = 0; i < numThreads; i++)
             {

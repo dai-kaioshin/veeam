@@ -1,7 +1,6 @@
 ﻿using GZipTest.Chunks;
 using GZipTest.Processing.Process;
 using GZipTest.Processing.Write;
-using GZipTest.Queue;
 using System;
 using System.IO;
 using System.Threading;
@@ -11,9 +10,17 @@ namespace GZipTest.Processing
     abstract class AbstractReadProcessWrite : IReadProcessWrite
     {
         protected static readonly log4net.ILog _log = log4net.LogManager.GetLogger(typeof(AbstractReadProcessWrite));
+        protected abstract IDataReader CreateDataReader(ReadProcessWriteInput input);
+
+        protected abstract IDataWriter CreateDataWriter(ReadProcessWriteInput input);
+
+        protected abstract IDataProcessor CreateDataProcessor();
 
         public void ReadProcessWrite(ReadProcessWriteInput input)
         {
+            bool error = false;
+            Thread[] processors = null;
+            Thread writer = null;
             CheckPreconditions(input);
             try
             {
@@ -26,32 +33,40 @@ namespace GZipTest.Processing
                 ProcessingSyncContext processingSyncContext = new ProcessingSyncContext(processingThreads, processingQueueSize);
                 WritingSyncContext writingSyncContext = new WritingSyncContext(processingThreads);
 
-                StartProcessingThreads(processingSyncContext, writingSyncContext, processingThreads);
-                StartWritingThread(writingSyncContext, input);
+                processors = StartProcessingThreads(processingSyncContext, writingSyncContext, processingThreads);
+                writer = StartWritingThread(writingSyncContext, input);
                 ReadData(input, processingSyncContext, writingSyncContext);
             }
             catch(Exception exception)
             {
                 _log.Error(exception);
-                if(File.Exists(input.OutputFileName))
-                {
-                    try
-                    {
-                        File.Delete(input.OutputFileName);
-                    }
-                    catch(Exception ex)
-                    {
-                        _log.Error("Failed to delete output file after error.", ex);
-                    }
-                }
+                error = true;
                 throw;
             }
-        }
-
-        private void CreateOutputFile(ReadProcessWriteInput input)
-        {
-            using (var file = File.Create(input.OutputFileName))
+            finally
             {
+                if(processors != null)
+                {
+                    for(int i = 0; i < processors.Length; i++)
+                    {
+                        JoinOrAbortThread(processors[i]);
+                    }
+                    JoinOrAbortThread(writer);
+                }
+                if(error)
+                {
+                    if (File.Exists(input.OutputFileName))
+                    {
+                        try
+                        {
+                            File.Delete(input.OutputFileName);
+                        }
+                        catch (Exception ex)
+                        {
+                            _log.Error("Failed to delete output file after error.", ex);
+                        }
+                    }
+                }
             }
         }
 
@@ -67,11 +82,12 @@ namespace GZipTest.Processing
             }
         }
 
-        protected abstract IDataReader CreateDataReader(ReadProcessWriteInput input);
-
-        protected abstract IDataWriter CreateDataWriter(ReadProcessWriteInput input);
-
-        protected abstract IDataProcessor CreateDataProcessor();
+        private void CreateOutputFile(ReadProcessWriteInput input)
+        {
+            using (var file = File.Create(input.OutputFileName))
+            {
+            }
+        }
 
         private void ReadData(ReadProcessWriteInput input, ProcessingSyncContext processingSyncContest, WritingSyncContext writingSyncContext)
         {
@@ -124,6 +140,7 @@ namespace GZipTest.Processing
                 processingSyncContest.WaitAllDoneEvents();
 
                 writingSyncContext.SetFinished();
+                writingSyncContext.SyncEvents[0].Set();
                 writingSyncContext.DoneEvent.WaitOne();
 
                 if(!errorOccured)
@@ -156,26 +173,32 @@ namespace GZipTest.Processing
             }
         }
 
-        private void StartProcessingThreads(ProcessingSyncContext processingSyncContext, WritingSyncContext writeSyncContext, int processingThreads)
+        private Thread[] StartProcessingThreads(ProcessingSyncContext processingSyncContext, WritingSyncContext writeSyncContext, int processingThreads)
         {
             IDataProcessor dataProcessor = CreateDataProcessor();
+            Thread[] threads = new Thread[processingThreads];
             for(int i = 0; i < processingThreads; i++)
             {
                 string threadName = "ProcessingThread-" + i;
                 int threadIdx = i;
-                new Thread(() => DoProcessing(processingSyncContext, writeSyncContext, dataProcessor, threadIdx))
+                Thread thread = new Thread(() => DoProcessing(processingSyncContext, writeSyncContext, dataProcessor, threadIdx))
                 {
                     Name = threadName
-                }.Start();
+                };
+                threads[i] = thread;
+                thread.Start();
             }
+            return threads;
         }
 
-        private void StartWritingThread(WritingSyncContext writingSyncContext, ReadProcessWriteInput input)
+        private Thread StartWritingThread(WritingSyncContext writingSyncContext, ReadProcessWriteInput input)
         {
-            new Thread(() => DoWriting(writingSyncContext, input)) 
-            { 
-                Name = "WriterThread" 
-            }.Start();
+            Thread thread = new Thread(() => DoWriting(writingSyncContext, input))
+            {
+                Name = "WriterThread"
+            };
+            thread.Start();
+            return thread;
         }
 
         private void DoProcessing(ProcessingSyncContext processingSyncContext, WritingSyncContext writeSyncContext, IDataProcessor dataProcessor, int threadIdx)
@@ -194,24 +217,50 @@ namespace GZipTest.Processing
                         _log.Debug($"Compressing thread {Thread.CurrentThread.Name} exists.");
                         return;
                     }
+                    Exception exception = writeSyncContext.Exception;
+
+                    if (exception != null)
+                    {
+                        processingSyncContext.SetError(exception);
+                        processingSyncContext.SetFinished();
+                        return;
+                    }
 
                     if (!dequeued)
                     {
                         processingSyncContext.SyncEvents[threadIdx].WaitOne();
                         continue;
                     }
-                    writeSyncContext.Queue.Enqueue(dataProcessor.ProcessData(chunk));
+
+                    throw new Exception("SOME ERROR");
+
+                    bool enqueued = false;
+                    DataChunk processedChunk = dataProcessor.ProcessData(chunk);
+                    while (!enqueued)
+                    {
+                        enqueued = writeSyncContext.Queue.Enqueue(processedChunk);
+                        if(!enqueued)
+                        {
+                            exception = writeSyncContext.Exception;
+                            if(exception != null)
+                            {
+                                processingSyncContext.SetError(exception);
+                                processingSyncContext.SetFinished();
+                                return;
+                            }
+                        }
+                    }
                     writeSyncContext.SyncEvents[threadIdx].Set();
                 }
             }
             catch (Exception exception)
             {
-                _log.Error($"Error during compressing: {exception}");
-                processingSyncContext.SetError(new ProcessingException($"Exception during compression in thread Thread : {Thread.CurrentThread.Name}", exception));
+                _log.Error($"Error during processing: {exception}");
+                processingSyncContext.SetError(new ProcessingException($"Exception during processing in Thread {Thread.CurrentThread.Name} : {exception.Message}", exception));
             }
             finally
             {
-                _log.Debug($"Compressing thread : {Thread.CurrentThread.Name} : done.");
+                _log.Debug($"Processing thread : {Thread.CurrentThread.Name} : done.");
                 processingSyncContext.DoneEvents[threadIdx].Set();
             }
         }
@@ -243,12 +292,32 @@ namespace GZipTest.Processing
             catch (Exception exception)
             {
                 _log.Error($"Error during writing: {exception}");
-                syncContext.SetError(new ProcessingException($"Error writing compressed data to output file : {exception.Message}", exception));
+                syncContext.SetError(new ProcessingException($"Error writing data to output file : {exception.Message}", exception));
             }
             finally
             {
                 _log.Debug($"Writer thread done.");
                 syncContext.DoneEvent.Set();
+            }
+        }
+
+        private void JoinOrAbortThread(Thread thread)
+        {
+            bool joined = false;
+            try
+            {
+                joined = thread.Join(100);
+            }
+            catch (Exception ex)
+            {
+                _log.Error(ex);
+            }
+            finally
+            {
+                if (!joined)
+                {
+                    thread.Abort();
+                }
             }
         }
     }
