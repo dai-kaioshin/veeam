@@ -1,6 +1,6 @@
 ﻿namespace GZipTest.Processing
 {
-    internal class Constants
+    class Constants
     {
         internal static string FILE_HEADER = "Veam-Compression-v1.0";
 

@@ -10,6 +10,11 @@ namespace GZipTest.Processing.Read
         private bool _disposed = false;
 
         protected byte[] _buffer;
+
+        public abstract long Chunks
+        {
+            get;
+        }
         
         internal AbstractDataReader(string inputFileName)
         {

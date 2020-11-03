@@ -6,7 +6,7 @@ using System.IO;
 
 namespace GZipTest.Processing
 {
-    internal class CompressData : AbstractReadProcessWrite
+    class CompressData : AbstractReadProcessWrite
     {
         protected override void CheckPreconditions(ReadProcessWriteInput input)
         {

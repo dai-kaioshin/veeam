@@ -7,7 +7,7 @@ using System.Text;
 
 namespace GZipTest.Processing
 {
-    internal class DecompressData : AbstractReadProcessWrite
+    class DecompressData : AbstractReadProcessWrite
     {
         protected override void CheckPreconditions(ReadProcessWriteInput input)
         {

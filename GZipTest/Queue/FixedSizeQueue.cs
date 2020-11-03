@@ -8,11 +8,11 @@ namespace GZipTest.Queue
     {
         private readonly Queue<T> _queue = new Queue<T>();
 
-        private readonly uint _maxSize;
+        private readonly int _maxSize;
 
         private readonly AutoResetEvent _queueSizeChangedEvent = new AutoResetEvent(false);
 
-        public FixedSizeQueue(uint maxSize)
+        public FixedSizeQueue(int maxSize)
         {
             Debug.Assert(maxSize > 0, "maxSize has to be greater then 0");
             _maxSize = maxSize;

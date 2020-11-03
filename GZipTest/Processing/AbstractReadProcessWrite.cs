@@ -10,6 +10,9 @@ namespace GZipTest.Processing
     abstract class AbstractReadProcessWrite : IReadProcessWrite
     {
         protected static readonly log4net.ILog _log = log4net.LogManager.GetLogger(typeof(AbstractReadProcessWrite));
+
+        public event ProcessingProgress ProcessingProgress;
+
         public void ReadProcessWrite(ReadProcessWriteInput input)
         {
             bool error = false;
@@ -21,15 +24,18 @@ namespace GZipTest.Processing
                 CreateOutputFile(input);
 
                 int processingThreads = Environment.ProcessorCount;
-                int processingQueueSize = processingThreads * 2;
 
+                using (IDataReader dataReader = CreateDataReader(input))
+                {
+                    ProcessingSyncContext processingSyncContext = new ProcessingSyncContext(processingThreads, processingThreads * 2);
+                    WritingSyncContext writingSyncContext = new WritingSyncContext(processingThreads, processingThreads * 2);
 
-                ProcessingSyncContext processingSyncContext = new ProcessingSyncContext(processingThreads, processingQueueSize);
-                WritingSyncContext writingSyncContext = new WritingSyncContext(processingThreads);
+                    long totalChunks = dataReader.Chunks;
 
-                processors = StartProcessingThreads(processingSyncContext, writingSyncContext, processingThreads);
-                writer = StartWritingThread(writingSyncContext, input);
-                ReadData(input, processingSyncContext, writingSyncContext);
+                    processors = StartProcessingThreads(processingSyncContext, writingSyncContext, processingThreads);
+                    writer = StartWritingThread(writingSyncContext, input, totalChunks);
+                    ReadData(dataReader, processingSyncContext, writingSyncContext);
+                }
             }
             catch (Exception exception)
             {
@@ -101,31 +107,28 @@ namespace GZipTest.Processing
             }
         }
 
-        private void ReadData(ReadProcessWriteInput input, ProcessingSyncContext processingSyncContest, WritingSyncContext writingSyncContext)
+        private void ReadData(IDataReader dataReader, ProcessingSyncContext processingSyncContest, WritingSyncContext writingSyncContext)
         {
             bool errorOccured = false;
             try
             {
-                using (IDataReader reader = CreateDataReader(input))
+                DataChunk chunk;
+                while (dataReader.ReadNext(out chunk))
                 {
-                    DataChunk chunk;
-                    while (reader.ReadNext(out chunk))
+                    bool enqueued = false;
+                    while (!enqueued)
                     {
-                        bool enqueued = false;
-                        while (!enqueued)
+                        _log.Debug($"Enqueueing chunk : {chunk}");
+                        enqueued = processingSyncContest.Queue.Enqueue(chunk, 100);
+                        if (!enqueued)
                         {
-                            _log.Debug($"Enqueueing chunk : {chunk}");
-                            enqueued = processingSyncContest.Queue.Enqueue(chunk, 100);
-                            if (!enqueued)
-                            {
-                                CheckContextException(processingSyncContest);
-                            }
+                            CheckContextException(processingSyncContest);
                         }
-                        CheckContextException(processingSyncContest);
-                        CheckContextException(writingSyncContext);
-
-                        processingSyncContest.SetAllSyncEvents();
                     }
+                    CheckContextException(processingSyncContest);
+                    CheckContextException(writingSyncContext);
+
+                    processingSyncContest.SetAllSyncEvents();
                 }
             }
             catch(ProcessingException)
@@ -167,7 +170,8 @@ namespace GZipTest.Processing
                 int threadIdx = i;
                 Thread thread = new Thread(() => DoProcessing(processingSyncContext, writeSyncContext, dataProcessor, threadIdx))
                 {
-                    Name = threadName
+                    Name = threadName,
+                    Priority = ThreadPriority.AboveNormal
                 };
                 threads[i] = thread;
                 thread.Start();
@@ -175,11 +179,12 @@ namespace GZipTest.Processing
             return threads;
         }
 
-        private Thread StartWritingThread(WritingSyncContext writingSyncContext, ReadProcessWriteInput input)
+        private Thread StartWritingThread(WritingSyncContext writingSyncContext, ReadProcessWriteInput input, long totalChunks)
         {
-            Thread thread = new Thread(() => DoWriting(writingSyncContext, input))
+            Thread thread = new Thread(() => DoWriting(writingSyncContext, input, totalChunks))
             {
-                Name = "WriterThread"
+                Name = "WriterThread",
+                Priority = ThreadPriority.AboveNormal
             };
             thread.Start();
             return thread;
@@ -254,12 +259,15 @@ namespace GZipTest.Processing
             }
         }
 
-        private void DoWriting(WritingSyncContext syncContext, ReadProcessWriteInput input)
+        private void DoWriting(WritingSyncContext syncContext, ReadProcessWriteInput input, long totalChunks)
         {
             try
             {
                 using (var dataWriter = CreateDataWriter(input))
                 {
+                    int chunksProcessed = 0;
+                    double percentDone = 0.0d, prevNotifiedPercentDone = 0.0d;
+
                     while (true)
                     {
                         DataChunk chunk = null;
@@ -275,6 +283,14 @@ namespace GZipTest.Processing
                             continue;
                         }
                         dataWriter.WriteChunk(chunk);
+                        chunksProcessed++;
+                        percentDone = chunksProcessed / (double)totalChunks;
+                        if(percentDone - prevNotifiedPercentDone >= 0.01)
+                        {
+                            ProcessingProgress?.Invoke(Math.Ceiling(percentDone * 100));
+                            prevNotifiedPercentDone = percentDone;
+                        }
+
                     }
                 }
             }

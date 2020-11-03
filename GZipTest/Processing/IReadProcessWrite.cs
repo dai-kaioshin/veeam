@@ -6,7 +6,7 @@
         public string OutputFileName { get; }
         public int ChunkSize { get; }
 
-        public ReadProcessWriteInput(string inputFileName, string outputFileName, int chunkSize = 1024 * 1024)
+        internal ReadProcessWriteInput(string inputFileName, string outputFileName, int chunkSize = 1024 * 1024)
         {
             InputFileName = inputFileName;
             OutputFileName = outputFileName;
@@ -14,8 +14,12 @@
         }
     }
 
+    delegate void ProcessingProgress(double percentDone); 
+
     interface IReadProcessWrite
     {
+        event ProcessingProgress ProcessingProgress;
+
         void ReadProcessWrite(ReadProcessWriteInput input);
     }
 }

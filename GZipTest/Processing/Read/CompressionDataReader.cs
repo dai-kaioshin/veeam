@@ -14,7 +14,14 @@ namespace GZipTest.Processing.Read
         {
             _chunkSize = chunkSize;
             _buffer = new byte[_chunkSize];
+        }
 
+        public override long Chunks
+        {
+            get
+            {
+                return (long) Math.Ceiling(_fileStream.Length / (double)_chunkSize);
+            }
         }
 
         public override bool ReadNext(out DataChunk chunk)

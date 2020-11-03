@@ -10,17 +10,31 @@ namespace GZipTest.Processing.Read
 
         private int _decompressedChunkSize;
 
+        private long _decompressedFileSize;
+
         private int _part = 0;
         internal DecompressionDataReader(string inputFileName)
             : base(inputFileName)
         {
-            _fileStream.Position = Constants.FILE_HEADER_LENGTH + sizeof(long);
-            byte[] buffer = new byte[sizeof(int)];
+            _fileStream.Position = Constants.FILE_HEADER_LENGTH;
+            byte[] buffer = new byte[sizeof(long)];
+
+            _fileStream.Read(buffer, 0, sizeof(long));
+            _decompressedFileSize = BitConverter.ToInt64(buffer);
+
             _fileStream.Read(buffer, 0, sizeof(int));
             _decompressedChunkSize = BitConverter.ToInt32(buffer);
 
             // The size of GZIP compressed chunk can be much bigger then original one in some cases.
             _buffer = new byte[(int)Math.Round(_decompressedChunkSize * 1.2d)];
+        }
+
+        public override long Chunks
+        {
+            get
+            {
+                return (long)Math.Ceiling(_decompressedFileSize / (double)_decompressedChunkSize);
+            }
         }
 
         public override bool ReadNext(out DataChunk chunk)

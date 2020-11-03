@@ -1,6 +1,7 @@
 ﻿using GZipTest.Chunks;
 using GZipTest.Queue;
 using System;
+using System.Diagnostics;
 using System.Threading;
 
 namespace GZipTest.Processing
@@ -83,9 +84,10 @@ namespace GZipTest.Processing
     {
         public AutoResetEvent DoneEvent { get; }
 
-        public WritingSyncContext(int numThreads)
+        public WritingSyncContext(int numThreads, int queueSize)
         {
-            Queue = new FixedSizeQueue<DataChunk>((uint)numThreads);
+            Debug.Assert(numThreads > 0, "numThreads must be > 0.");
+            Queue = new FixedSizeQueue<DataChunk>(queueSize);
             SyncEvents = new AutoResetEvent[numThreads];
             for(int i  = 0; i < numThreads; i++)
             {
@@ -100,8 +102,6 @@ namespace GZipTest.Processing
     { 
         public AutoResetEvent[] DoneEvents { get; }
 
-        private Exception _exception = null;
-
         internal class FinishedFlag
         {
             internal bool Finished
@@ -110,12 +110,10 @@ namespace GZipTest.Processing
             } = false;
         }
 
-        private FinishedFlag _finished = new FinishedFlag();
-
-
         internal ProcessingSyncContext(int numThreads, int queueSize)
         {
-            Queue = new FixedSizeQueue<DataChunk>((uint)queueSize);
+            Debug.Assert(numThreads > 0, "numThreads must be > 0.");
+            Queue = new FixedSizeQueue<DataChunk>(queueSize);
             SyncEvents = new AutoResetEvent[numThreads];
             DoneEvents = new AutoResetEvent[numThreads];
             for(int i = 0; i < numThreads; i++)

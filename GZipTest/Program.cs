@@ -3,7 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.IO.Compression;
 
 namespace GZipTest
 {
@@ -41,6 +40,7 @@ namespace GZipTest
                 ReadProcessWriteMode modeEnum = Parse(mode);
 
                 IReadProcessWrite readProcessWrite = ReadProcessWriteFactory.Create(modeEnum);
+                readProcessWrite.ProcessingProgress += ReadProcessWrite_ProcessingProgress;
 
                 ReadProcessWriteInput input = new ReadProcessWriteInput(inputFileName, outputFileName);
 
@@ -49,19 +49,12 @@ namespace GZipTest
                 string work = modeEnum == ReadProcessWriteMode.Compress ? "Compressing" : "Decompressing";
 
                 Console.WriteLine($"{work} {inputFileName} into {outputFileName}");
+                Console.WriteLine();
 
                 Stopwatch watch = new Stopwatch();
                 watch.Start();
 
                 readProcessWrite.ReadProcessWrite(input);
-
-                /*using(var inFile = File.OpenRead(inputFileName))
-                {
-                    using(var outFile = new GZipStream(File.Create(outputFileName), CompressionLevel.Optimal))
-                    {
-                        inFile.CopyTo(outFile);
-                    }
-                }*/
 
                 watch.Stop();
                 string jobName = modeEnum == ReadProcessWriteMode.Compress ? "Compression" : "Decompression";
@@ -74,6 +67,12 @@ namespace GZipTest
                 Console.WriteLine(exception.Message);
             }
             return 1;
+        }
+
+        private static void ReadProcessWrite_ProcessingProgress(double percentDone)
+        {
+            Console.SetCursorPosition(0, Console.CursorTop - 1);
+            Console.WriteLine($"Done : {percentDone} %");
         }
     }
 }

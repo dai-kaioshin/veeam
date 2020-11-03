@@ -2,28 +2,28 @@
 {
     class DataChunk
     {
-        public int Part
+        internal int Part
         {
             get;
         }
 
-        public long Position
+        internal long Position
         {
             get;
         }
 
-        public int DecompressedSize
+        internal int DecompressedSize
         {
             get;
         }
 
-        public byte[] Data
+        internal byte[] Data
         {
             get;
         }
 
 
-        public DataChunk(int part, long position, byte[] data)
+        internal DataChunk(int part, long position, byte[] data)
         {
             Part = part;
             Position = position;
@@ -31,7 +31,7 @@
             DecompressedSize = data.Length;
         }
 
-        public DataChunk(int part, long position, int decompressedSize, byte[] data)
+        internal DataChunk(int part, long position, int decompressedSize, byte[] data)
         {
             Part = part;
             Position = position;

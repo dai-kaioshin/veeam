@@ -2,14 +2,14 @@
 
 namespace GZipTest.Processing
 {
-    public class ProcessingException : Exception
+    class ProcessingException : Exception
     {
-        public ProcessingException(string message, Exception innerException) 
+        internal ProcessingException(string message, Exception innerException) 
             : base(message, innerException)
         {
         }
 
-        public ProcessingException(string message) 
+        internal ProcessingException(string message) 
             : base(message)
         {
         }
